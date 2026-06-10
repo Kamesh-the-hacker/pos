@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4>👤 User Management</h4>
+
+<form method="POST" action="/add_user" class="mb-3">
+<input name="username" class="form-control mb-2" placeholder="Username">
+<input name="password" class="form-control mb-2" placeholder="Password">
+
+<select name="role" class="form-control mb-2">
+<option>admin</option>
+<option>staff</option>
+</select>
+
+<button class="btn btn-success">Add User</button>
+</form>
+
+<table class="table">
+<tr><th>User</th><th>Role</th></tr>
+{% for u in users %}
+<tr><td>{{u.username}}</td><td>{{u.role}}</td></tr>
+{% endfor %}
+</table>
+
+{% endblock %}

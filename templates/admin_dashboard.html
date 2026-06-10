@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4 class="mb-3">📊 Dashboard</h4>
+
+<!-- 🔥 TOP CARDS -->
+<div class="row g-3">
+
+<!-- TOTAL TODAY -->
+<div class="col-md-3">
+<div class="card p-4 text-center shadow border-0">
+<h6>Total Today</h6>
+<h2 class="text-dark">₹ {{ total_today }}</h2>
+</div>
+</div>
+
+<!-- CASH TODAY -->
+<div class="col-md-3">
+<div class="card p-4 text-center shadow border-0">
+<h6>Cash Today</h6>
+<h2 class="text-success">₹ {{ cash_today }}</h2>
+</div>
+</div>
+
+<!-- UPI TODAY -->
+<div class="col-md-3">
+<div class="card p-4 text-center shadow border-0">
+<h6>UPI Today</h6>
+<h2 class="text-primary">₹ {{ upi_today }}</h2>
+</div>
+</div>
+
+<!-- MONTHLY -->
+<div class="col-md-3">
+<div class="card p-4 text-center shadow border-0">
+<h6>Monthly Sales</h6>
+<h2 class="text-warning">₹ {{ monthly_sales }}</h2>
+</div>
+</div>
+
+</div>
+
+<hr>
+
+<!-- 🔥 DATE SEARCH -->
+<h5>📅 Sales by Date</h5>
+
+<div class="d-flex gap-2 mb-2">
+
+<input type="date" id="date" class="form-control w-25">
+
+<button onclick="loadSales()" class="btn btn-dark">
+Search
+</button>
+
+</div>
+
+<div id="salesResult" class="mt-3"></div>
+
+<script>
+
+function loadSales(){
+
+    let date = document.getElementById("date").value;
+
+    if(!date){
+        alert("Select date ❌");
+        return;
+    }
+
+    fetch("/sales_by_date/" + date)
+    .then(r=>r.json())
+    .then(data=>{
+
+        document.getElementById("salesResult").innerHTML = `
+        <div class="card p-3 shadow border-0 text-center">
+            <h6>Total Sales</h6>
+            <h3 class="text-success">₹ ${data.total}</h3>
+        </div>`;
+    });
+}
+
+</script>
+
+{% endblock %}

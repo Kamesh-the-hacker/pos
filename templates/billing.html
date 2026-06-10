@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+
+body{
+    background:#f4f6f9;
+}
+
+/* SEARCH */
+#suggestions{
+    max-height:200px;
+    overflow-y:auto;
+    position:absolute;
+    z-index:1000;
+}
+
+/* CART */
+.cart-container{
+    background:white;
+    padding:15px;
+    border-radius:12px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.08);
+    height:380px;
+    display:flex;
+    flex-direction:column;
+}
+
+.cart-table{
+    overflow-y:auto;
+    flex:1;
+}
+
+.cart-table thead th{
+    position:sticky;
+    top:0;
+    background:#343a40;
+    color:white;
+}
+
+/* BUTTONS */
+.qty-btn{
+    border:none;
+    padding:4px 10px;
+    border-radius:6px;
+}
+.qty-plus{ background:#28a745; color:white; }
+.qty-minus{ background:#ffc107; }
+
+.remove-btn{
+    background:#dc3545;
+    color:white;
+    border:none;
+    padding:4px 10px;
+    border-radius:6px;
+}
+
+.big-total{
+    font-size:45px;
+    font-weight:bold;
+}
+
+</style>
+
+<h4>🧾 Billing - Meenachi Shopping Market</h4>
+
+<div class="row">
+
+<!-- LEFT -->
+<div class="col-md-8">
+
+<div class="card p-3 mb-3 shadow-sm position-relative">
+<h6>Scan or Search Product</h6>
+
+<input id="mainInput" class="form-control" placeholder="Scan barcode or type product..." autofocus>
+
+<div id="suggestions" class="list-group w-100"></div>
+
+</div>
+
+<div class="cart-container">
+
+<h5>🛒 Cart</h5>
+
+<div class="cart-table">
+<table class="table table-bordered text-center align-middle">
+
+<thead>
+<tr>
+<th>#</th>
+<th>Item</th>
+<th>Qty</th>
+<th>Rate</th>
+<th>Total</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="cartBody"></tbody>
+
+</table>
+</div>
+
+</div>
+
+</div>
+
+<!-- RIGHT -->
+<div class="col-md-4">
+
+<div class="card p-4 text-center shadow">
+
+<h5>Total</h5>
+<div class="big-total text-success">₹ <span id="total">0</span></div>
+
+<h6 class="mt-3">Round Off</h6>
+<h3>₹ <span id="round">0</span></h3>
+
+<select id="payment" class="form-control mt-3">
+<option>Cash</option>
+<option>UPI</option>
+</select>
+
+<button onclick="completeBill()" class="btn btn-success w-100 mt-3">
+Complete & Print
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+// 🔊 SOUND
+const beep = new Audio("/static/beep.mp3");
+
+// DATA
+let bill = {};
+let suggestionData = [];
+let selectedIndex = -1;
+
+// 🔥 ENTER
+mainInput.addEventListener("keydown", function(e){
+
+    if(e.key === "Enter"){
+
+        let value = mainInput.value.trim();
+
+        if(!value) return;
+
+        if(/^[0-9]+$/.test(value)){
+            processScan(value);
+        } else {
+            if(selectedIndex >= 0){
+                selectProduct(selectedIndex);
+            } else {
+                alert("Select product ❌");
+            }
+        }
+
+        mainInput.value="";
+        suggestions.innerHTML="";
+        e.preventDefault();
+    }
+});
+
+// 🔍 SEARCH
+mainInput.addEventListener("input", function(){
+
+    let q = this.value.trim();
+
+    if(q.length < 2){
+        suggestions.innerHTML="";
+        return;
+    }
+
+    fetch("/search_suggestions/"+q)
+    .then(r=>r.json())
+    .then(data=>{
+        suggestionData=data;
+        selectedIndex=-1;
+        renderSuggestions();
+    });
+});
+
+function renderSuggestions(){
+    let html="";
+    suggestionData.forEach((p,i)=>{
+        html+=`
+        <a class="list-group-item list-group-item-action ${i===selectedIndex?'active':''}"
+        onclick="selectProduct(${i})">
+        ${p.name} - ₹${p.price}
+        </a>`;
+    });
+    suggestions.innerHTML=html;
+}
+
+function selectProduct(i){
+    let p=suggestionData[i];
+    addToCart(p.name,p.price,p.stock);
+    beep.play();
+    suggestions.innerHTML="";
+    mainInput.value="";
+}
+
+// 🔼🔽
+mainInput.addEventListener("keydown", function(e){
+
+    if(!suggestionData.length) return;
+
+    if(e.key==="ArrowDown") selectedIndex=(selectedIndex+1)%suggestionData.length;
+    if(e.key==="ArrowUp") selectedIndex=(selectedIndex-1+suggestionData.length)%suggestionData.length;
+
+    renderSuggestions();
+});
+
+// 🔥 SCAN
+function processScan(code){
+    fetch("/get_product/"+code)
+    .then(r=>r.json())
+    .then(p=>{
+        if(p.error){ alert(p.error); return; }
+        addToCart(p.name,p.price,p.stock);
+        beep.play();
+    });
+}
+
+// 🛒 ADD
+function addToCart(name,price,stock){
+
+    if(bill[name]){
+        if(bill[name].qty < stock) bill[name].qty++;
+        else { alert("Stock limit ❌"); return; }
+    } else {
+        bill[name]={qty:1,price:price,stock:stock};
+    }
+
+    renderCart();
+}
+
+// 🛒 RENDER
+function renderCart(){
+
+    let html="", total=0, i=1;
+
+    for(let name in bill){
+
+        let item=bill[name];
+        let sub=item.qty*item.price;
+        total+=sub;
+
+        let left=item.stock-item.qty;
+        let color=left<=3?"red":"gray";
+
+        html+=`
+        <tr>
+
+            <td>${i++}</td>
+
+            <td style="text-align:left;">
+                ${name}<br>
+                <small style="color:${color}">
+                    Stock Left: ${left}
+                </small>
+            </td>
+
+            <td>
+                <button class="qty-btn qty-minus" onclick="changeQty('${name}',-1)">-</button>
+                ${item.qty}
+                <button class="qty-btn qty-plus" onclick="changeQty('${name}',1)">+</button>
+            </td>
+
+            <td class="text-end">₹ ${item.price}</td>
+            <td class="text-end">₹ ${sub}</td>
+
+            <td>
+                <button class="remove-btn" onclick="removeItem('${name}')">X</button>
+            </td>
+
+        </tr>`;
+    }
+
+    cartBody.innerHTML=html;
+
+    let round=Math.round(total);
+    totalDisplay(total,round);
+}
+
+// TOTAL
+function totalDisplay(t,r){
+    total.innerText=t.toFixed(2);
+    document.getElementById("round").innerText=r;
+}
+
+// QTY
+function changeQty(name,val){
+    let item=bill[name];
+
+    if(item.qty+val>item.stock){
+        alert("Stock limit ❌");
+        return;
+    }
+
+    item.qty+=val;
+    if(item.qty<=0) delete bill[name];
+
+    renderCart();
+}
+
+// REMOVE
+function removeItem(name){
+    delete bill[name];
+    renderCart();
+}
+
+// 🔥 BILL + PROFESSIONAL INVOICE
+function completeBill(){
+
+    if(Object.keys(bill).length===0){
+        alert("No items ❌");
+        return;
+    }
+
+    fetch("/save_bill",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({bill:bill})
+    })
+    .then(r=>r.json())
+    .then(data=>{
+        printInvoice(data.invoice);
+    });
+}
+
+// 🧾 PRINT
+function printInvoice(inv){
+
+ let totalVal = document.getElementById("round").innerText;
+ let payment = document.getElementById("payment").value;
+
+ let now = new Date();
+ let date = now.toLocaleDateString();
+ let time = now.toLocaleTimeString();
+
+ let rows = "";
+ let i = 1;
+ let subTotal = 0;
+
+ for(let name in bill){
+
+    let item = bill[name];
+    let amt = item.qty * item.price;
+    subTotal += amt;
+
+    rows += `
+    <tr>
+        <td>${i++}</td>
+        <td class="left">${name}</td>
+        <td>${item.qty}</td>
+        <td class="right">${item.price}</td>
+        <td class="right">${amt}</td>
+    </tr>`;
+ }
+
+ let win = window.open("", "", "width=350,height=600");
+
+ let html = `
+ <html>
+ <head>
+ <style>
+
+ body{
+    font-family: monospace;
+    font-size:14px;
+    font-weight:bold;
+    letter-spacing:0.5px;
+ }
+
+ .center{
+    text-align:center;
+ }
+
+ .line{
+    border-top:1px dashed black;
+    margin:6px 0;
+ }
+
+ .double-line{
+    border-top:2px solid black;
+    margin:8px 0;
+ }
+
+ table{
+    width:100%;
+    border-collapse:collapse;
+ }
+
+ th, td{
+    padding:4px;
+    font-size:13px;
+ }
+
+ th{
+    border-bottom:1px solid black;
+ }
+
+ .right{
+    text-align:right;
+ }
+
+ .left{
+    text-align:left;
+ }
+
+ /* 🔥 TOTAL RIGHT BOX */
+ .total-box{
+    border-top:2px solid black;
+    border-bottom:2px solid black;
+    padding:8px;
+    font-size:18px;
+    text-align:right;
+    margin-top:5px;
+ }
+
+ /* 🔥 SUBTOTAL */
+ .summary{
+    text-align:right;
+    margin-top:5px;
+ }
+
+ </style>
+ </head>
+
+ <body onload="window.print(); window.close();">
+
+ <div class="center">
+    <h2>MEENACHI SHOPPING MARKET</h2>
+    <p>Vandipalayam, Cuddalore</p>
+    <p>📞 9876543210</p>
+ </div>
+
+ <div class="double-line"></div>
+
+ <p><b>Invoice:</b> ${inv}</p>
+
+ <p style="display:flex; justify-content:space-between;">
+    <span>Date: ${date}</span>
+    <span>Time: ${time}</span>
+ </p>
+
+ <p><b>Payment:</b> ${payment}</p>
+
+ <div class="line"></div>
+
+ <table>
+ <thead>
+ <tr>
+    <th>#</th>
+    <th class="left">Item</th>
+    <th>Qty</th>
+    <th class="right">Rate</th>
+    <th class="right">Amt</th>
+ </tr>
+ </thead>
+
+ <tbody>
+ ${rows}
+ </tbody>
+ </table>
+
+ <div class="line"></div>
+
+ <!-- 🔥 SUMMARY -->
+ <div class="summary">
+    Subtotal : ₹ ${subTotal}
+ </div>
+
+ <!-- 🔥 TOTAL RIGHT SIDE -->
+ <div class="total-box">
+    TOTAL ₹ ${totalVal}
+ </div>
+
+ <div class="double-line"></div>
+
+ <div class="center">
+    <p>*** THANK YOU VISIT AGAIN ***</p>
+ </div>
+
+ </body>
+ </html>
+ `;
+
+ win.document.write(html);
+
+ // RESET
+ bill = {};
+ renderCart();
+}
+</script>
+
+{% endblock %}

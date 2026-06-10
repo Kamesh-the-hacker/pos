@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+
+.container-box{
+    max-width:420px;
+    margin:auto;
+}
+
+.result-card{
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    text-align:center;
+    box-shadow:0 5px 15px rgba(0,0,0,0.1);
+    margin-bottom:15px;
+}
+
+.history-box{
+    background:white;
+    padding:15px;
+    border-radius:12px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.08);
+    max-height:250px;
+    overflow-y:auto;
+}
+
+.history-item{
+    padding:10px;
+    border-bottom:1px solid #eee;
+}
+
+.in-stock{ color:green; font-weight:bold; }
+.low-stock{ color:orange; font-weight:bold; }
+.out-stock{ color:red; font-weight:bold; }
+
+button{
+    border-radius:8px;
+}
+
+</style>
+
+<div class="container-box">
+
+<h4 class="text-center mb-3">📦 Mobile Stock Checker</h4>
+
+<!-- 🔦 FLASH BUTTON -->
+<button onclick="toggleFlash()" class="btn btn-dark w-100 mb-2">
+🔦 Toggle Flash
+</button>
+
+<!-- 🔍 SEARCH -->
+<input id="scanInput" class="form-control mb-3"
+placeholder="Scan OR type product..." autofocus>
+
+<!-- 📷 CAMERA -->
+<div id="reader" style="width:100%; margin-bottom:15px;"></div>
+
+<!-- RESULT -->
+<div id="result"></div>
+
+<!-- HISTORY -->
+<div class="history-box">
+<h6>🕒 Scan History</h6>
+<div id="historyList"></div>
+</div>
+
+</div>
+
+<script>
+
+// 🔊 SOUND
+const beep = new Audio("/static/beep.mp3");
+
+// 📳 VIBRATION
+function vibrate(){
+    if(navigator.vibrate){
+        navigator.vibrate(100);
+    }
+}
+
+// 🔥 HISTORY
+let history = [];
+
+// 🔥 HANDLE RESULT
+function handleScan(code){
+
+    fetch("/search/" + code)
+    .then(r=>r.json())
+    .then(p=>{
+
+        if(p.error){
+            result.innerHTML = `
+            <div class="result-card">
+                <h5 class="text-danger">❌ Not Found</h5>
+            </div>`;
+            return;
+        }
+
+        beep.play();
+        vibrate();
+
+        let cls="in-stock";
+        if(p.stock==0) cls="out-stock";
+        else if(p.stock<5) cls="low-stock";
+
+        result.innerHTML = `
+        <div class="result-card">
+            <h4>${p.name}</h4>
+            <p>₹ ${p.price}</p>
+            <h2 class="${cls}">Stock: ${p.stock}</h2>
+        </div>`;
+
+        addHistory(p.name, p.stock);
+    });
+}
+
+// 🔥 CAMERA
+let scanner;
+
+function startScanner(){
+
+    scanner = new Html5Qrcode("reader");
+
+    scanner.start(
+        { facingMode: "environment" },
+        { fps:10, qrbox:250 },
+        (decodedText)=>{
+            handleScan(decodedText);
+        },
+        (err)=>{}
+    );
+}
+
+startScanner();
+
+// 🔦 FLASH
+let flashOn = false;
+
+function toggleFlash(){
+
+    if(!scanner) return;
+
+    flashOn = !flashOn;
+
+    scanner.applyVideoConstraints({
+        advanced: [{ torch: flashOn }]
+    });
+}
+
+// 🔍 MANUAL INPUT
+scanInput.addEventListener("keydown", function(e){
+
+    if(e.key === "Enter"){
+        let val = this.value.trim();
+        if(val){
+            handleScan(val);
+            this.value="";
+        }
+    }
+});
+
+// 🕒 HISTORY
+function addHistory(name, stock){
+
+    let time = new Date().toLocaleTimeString();
+
+    history.unshift({name, stock, time});
+
+    renderHistory();
+}
+
+function renderHistory(){
+
+    let html="";
+
+    history.forEach(item=>{
+
+        let color="green";
+        if(item.stock==0) color="red";
+        else if(item.stock<5) color="orange";
+
+        html+=`
+        <div class="history-item">
+            <b>${item.name}</b><br>
+            <span style="color:${color}">
+                Stock: ${item.stock}
+            </span><br>
+            <small>${item.time}</small>
+        </div>`;
+    });
+
+    historyList.innerHTML = html;
+}
+
+</script>
+
+{% endblock %}

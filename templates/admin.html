@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4 class="mb-3">📦 Product Management</h4>
+
+<!-- 🔥 ADD PRODUCT -->
+<div class="card p-3 mb-4 shadow-sm border-0">
+<h6>Scan Barcode & Add Product</h6>
+
+<input id="barcodeInput" class="form-control mb-2" placeholder="Scan barcode">
+
+<form method="POST" action="/add_product" onsubmit="return handleSubmit()">
+<input type="hidden" name="barcode" id="hiddenBarcode">
+
+<div class="row g-2">
+<div class="col">
+<input id="name" name="name" class="form-control" placeholder="Product Name" required>
+</div>
+
+<div class="col">
+<input name="price" class="form-control" placeholder="Price" required>
+</div>
+
+<div class="col">
+<input name="stock" class="form-control" placeholder="Stock" required>
+</div>
+</div>
+
+<button class="btn btn-success mt-3 w-100">Add Product</button>
+</form>
+</div>
+
+<!-- 🔍 SMART SEARCH -->
+<div class="card p-3 mb-4 shadow-sm border-0">
+
+<h6>🔍 Smart Search (Barcode / Name)</h6>
+
+<div class="input-group mb-3">
+<input id="searchInput" class="form-control" placeholder="Scan or type product name...">
+<button onclick="searchProduct()" class="btn btn-primary">Search</button>
+<button onclick="clearSearch()" class="btn btn-secondary">Clear</button>
+</div>
+
+<div id="result"></div>
+
+</div>
+
+<!-- 📊 PRODUCT TABLE -->
+<div class="card p-3 shadow-sm border-0">
+
+<h6>📋 Product List</h6>
+
+<table class="table table-hover align-middle">
+<thead>
+<tr>
+<th>Name</th>
+<th>Barcode</th>
+<th>Price</th>
+<th>Stock</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+{% for p in products %}
+<tr>
+
+<td>{{p.name}}</td>
+<td>{{p.barcode}}</td>
+<td>₹ {{p.price}}</td>
+
+<td>
+<span class="badge bg-{{ 'danger' if p.stock < 5 else 'success' }}">
+{{p.stock}}
+</span>
+</td>
+
+<td>
+
+<!-- 🔥 EDIT BUTTON -->
+<a href="/edit_product/{{p.id}}" class="btn btn-warning btn-sm">
+Edit
+</a>
+
+<!-- DELETE -->
+<a href="/delete/{{p.id}}" class="btn btn-danger btn-sm">
+Delete
+</a>
+
+</td>
+
+</tr>
+{% endfor %}
+</tbody>
+
+</table>
+
+</div>
+
+<script>
+
+// 🔥 AUTO SCAN BARCODE
+let scanTimer;
+
+document.getElementById("barcodeInput").addEventListener("input", function(){
+
+    clearTimeout(scanTimer);
+
+    scanTimer = setTimeout(() => {
+
+        let code = this.value.trim();
+
+        if(code){
+            document.getElementById("hiddenBarcode").value = code;
+            document.getElementById("name").focus();
+        }
+
+    }, 200);
+});
+
+// 🔥 FORM VALIDATION
+function handleSubmit(){
+
+    let code = document.getElementById("barcodeInput").value.trim();
+
+    // barcode optional
+
+    document.getElementById("hiddenBarcode").value = code;
+    return true;
+}
+
+// 🔍 SEARCH PRODUCT
+function searchProduct(){
+
+    let query = document.getElementById("searchInput").value.trim();
+
+    if(!query){
+        alert("Enter barcode or product name");
+        return;
+    }
+
+    fetch("/search/" + encodeURIComponent(query))
+    .then(res => res.json())
+    .then(p => {
+
+        let result = document.getElementById("result");
+
+        if(p.error){
+            result.innerHTML = `
+            <div class="alert alert-danger shadow-sm">
+                ❌ Product not found
+            </div>`;
+            return;
+        }
+
+        let stockColor = p.stock < 5 ? "danger" : "success";
+
+        result.innerHTML = `
+        <div class="card p-3 shadow-sm border-0">
+            <h5>${p.name}</h5>
+            <p class="mb-1">💰 Price: ₹ ${p.price}</p>
+            <p class="text-${stockColor}">
+                📦 Stock: ${p.stock}
+            </p>
+        </div>`;
+    });
+}
+
+// ⚡ AUTO SEARCH WHILE TYPING
+document.getElementById("searchInput").addEventListener("input", function(){
+
+    let value = this.value.trim();
+
+    if(value.length > 2){
+        searchProduct();
+    }
+});
+
+// 🧹 CLEAR SEARCH
+function clearSearch(){
+    document.getElementById("searchInput").value = "";
+    document.getElementById("result").innerHTML = "";
+}
+
+</script>
+
+{% endblock %}

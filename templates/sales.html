@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4 class="mb-3">📊 Sales Report</h4>
+
+<!-- 🔥 FILTER -->
+<div class="card p-3 shadow mb-3 border-0">
+
+<form method="GET" action="/sales" class="row g-2">
+
+<!-- FROM DATE -->
+<div class="col-md-2">
+<input type="date" name="from_date" class="form-control">
+</div>
+
+<!-- TO DATE -->
+<div class="col-md-2">
+<input type="date" name="to_date" class="form-control">
+</div>
+
+<!-- PAYMENT -->
+<div class="col-md-3">
+<select name="payment" class="form-control">
+<option value="All">All Payment</option>
+<option value="Cash">Cash</option>
+<option value="UPI">UPI</option>
+</select>
+</div>
+
+<!-- FILTER BUTTON -->
+<div class="col-md-2">
+<button class="btn btn-primary w-100">Filter</button>
+</div>
+
+<!-- CLEAR -->
+<div class="col-md-1">
+<a href="/sales" class="btn btn-secondary w-100">Clear</a>
+</div>
+
+<!-- EXPORT -->
+<div class="col-md-2">
+<a id="exportBtn" class="btn btn-success w-100">
+Export Excel
+</a>
+</div>
+
+</form>
+
+</div>
+
+<!-- 🔥 SALES TABLE -->
+<div class="card p-3 shadow border-0">
+
+<table class="table table-hover align-middle text-center">
+
+<thead class="table-dark">
+<tr>
+<th>Invoice</th>
+<th>Date</th>
+<th>Total</th>
+<th>Payment</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for s in sales %}
+<tr>
+
+<td><b>{{ s.invoice_no }}</b></td>
+
+<td>{{ s.date.strftime("%d-%m-%Y %H:%M") }}</td>
+
+<td class="fw-bold text-success">₹ {{ s.total }}</td>
+
+<td>
+    {% if s.payment == "Cash" %}
+        <span class="badge bg-success px-3 py-2">Cash</span>
+    {% elif s.payment == "UPI" %}
+        <span class="badge bg-primary px-3 py-2">UPI</span>
+    {% else %}
+        <span class="badge bg-secondary px-3 py-2">
+            {{ s.payment or "N/A" }}
+        </span>
+    {% endif %}
+</td>
+
+<td>
+    <a href="/sale/{{s.id}}" class="btn btn-sm btn-dark">
+        View
+    </a>
+</td>
+
+</tr>
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+<!-- 🔥 EXPORT SCRIPT -->
+<script>
+
+function updateExportLink(){
+
+    let from = document.querySelector("[name='from_date']").value;
+    let to = document.querySelector("[name='to_date']").value;
+    let payment = document.querySelector("[name='payment']").value;
+
+    let url = `/export_sales?from_date=${from}&to_date=${to}&payment=${payment}`;
+
+    document.getElementById("exportBtn").href = url;
+}
+
+// 🔥 EVENTS
+document.querySelector("[name='from_date']").addEventListener("change", updateExportLink);
+document.querySelector("[name='to_date']").addEventListener("change", updateExportLink);
+document.querySelector("[name='payment']").addEventListener("change", updateExportLink);
+
+// 🔥 INIT
+updateExportLink();
+
+</script>
+
+{% endblock %}

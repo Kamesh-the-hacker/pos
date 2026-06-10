@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4>✏️ Edit Product</h4>
+
+<div class="card p-4 shadow">
+
+<form method="POST">
+
+<label>Product Name</label>
+<input name="name" value="{{product.name}}" class="form-control mb-3" required>
+
+<label>Price</label>
+<input name="price" value="{{product.price}}" class="form-control mb-3" required>
+
+<label>Stock</label>
+<input name="stock" value="{{product.stock}}" class="form-control mb-3" required>
+
+<button class="btn btn-success w-100">Update Product</button>
+
+</form>
+
+</div>
+
+{% endblock %}

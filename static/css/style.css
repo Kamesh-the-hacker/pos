@@ -1,0 +1,37 @@
+body {
+    background: #f4f6f9;
+}
+
+.barcode-input {
+    font-size: 22px;
+    height: 60px;
+}
+
+.total-box {
+    background: black;
+    color: #00ff00;
+    padding: 20px;
+    border-radius: 10px;
+}
+<style>
+body{
+    background:#f4f6f9;
+}
+
+.card{
+    border-radius:15px;
+}
+
+#suggestions a.active{
+    background:#007bff;
+    color:white;
+}
+
+#cart .card{
+    border-left:5px solid #28a745;
+}
+
+h1{
+    font-weight:bold;
+}
+</style>

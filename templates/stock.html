@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4>📦 Stock Management</h4>
+
+<div class="card p-3 shadow">
+
+<input id="search" class="form-control mb-3" placeholder="Search product...">
+
+<table class="table table-bordered text-center align-middle">
+<thead>
+<tr>
+<th>Name</th>
+<th>Stock</th>
+<th>Update Stock</th>
+</tr>
+</thead>
+
+<tbody id="tableBody">
+
+{% for p in products %}
+<tr>
+
+<td>{{p.name}}</td>
+
+<td>
+<span class="badge bg-{{ 'danger' if p.stock < 5 else 'success' }}">
+{{p.stock}}
+</span>
+</td>
+
+<td>
+
+<form method="POST" action="/update_stock" class="d-flex justify-content-center gap-2">
+
+<input type="hidden" name="id" value="{{p.id}}">
+
+<input name="change" type="number"
+placeholder="+50 / -10"
+class="form-control"
+style="width:120px;" required>
+
+<button class="btn btn-primary btn-sm">
+Update
+</button>
+
+</form>
+
+</td>
+
+</tr>
+{% endfor %}
+
+</tbody>
+</table>
+
+</div>
+
+<script>
+
+// 🔍 SEARCH FILTER
+document.getElementById("search").addEventListener("input", function(){
+
+ let value = this.value.toLowerCase();
+
+ let rows = document.querySelectorAll("#tableBody tr");
+
+ rows.forEach(row=>{
+    let name = row.innerText.toLowerCase();
+
+    if(name.includes(value)){
+        row.style.display="";
+    }else{
+        row.style.display="none";
+    }
+ });
+
+});
+
+</script>
+
+{% endblock %}
