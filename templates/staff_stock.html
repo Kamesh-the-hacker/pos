@@ -37,24 +37,22 @@
 .low-stock{ color:orange; font-weight:bold; }
 .out-stock{ color:red; font-weight:bold; }
 
-button{
-    border-radius:8px;
-}
-
 </style>
 
 <div class="container-box">
 
 <h4 class="text-center mb-3">📦 Mobile Stock Checker</h4>
 
-<!-- 🔦 FLASH BUTTON -->
+<!-- 🔦 FLASH -->
 <button onclick="toggleFlash()" class="btn btn-dark w-100 mb-2">
 🔦 Toggle Flash
 </button>
 
 <!-- 🔍 SEARCH -->
-<input id="scanInput" class="form-control mb-3"
-placeholder="Scan OR type product..." autofocus>
+<input id="scanInput" class="form-control mb-2"
+placeholder="Scan OR search product..." autofocus>
+
+<div id="suggestions" class="list-group mb-3"></div>
 
 <!-- 📷 CAMERA -->
 <div id="reader" style="width:100%; margin-bottom:15px;"></div>
@@ -75,18 +73,22 @@ placeholder="Scan OR type product..." autofocus>
 // 🔊 SOUND
 const beep = new Audio("/static/beep.mp3");
 
-// 📳 VIBRATION
+// 📳 VIBRATE
 function vibrate(){
-    if(navigator.vibrate){
-        navigator.vibrate(100);
-    }
+    if(navigator.vibrate) navigator.vibrate(100);
 }
 
-// 🔥 HISTORY
+// 🔥 STORE UNIQUE SCANS
+let scanned = {};
 let history = [];
+let lastScan = "";
 
-// 🔥 HANDLE RESULT
+// 🔥 HANDLE SCAN
 function handleScan(code){
+
+    // 🚨 prevent multiple scan firing
+    if(code === lastScan) return;
+    lastScan = code;
 
     fetch("/search/" + code)
     .then(r=>r.json())
@@ -100,6 +102,12 @@ function handleScan(code){
             return;
         }
 
+        // 🚨 PREVENT DUPLICATE PRODUCT
+        if(scanned[p.name]) return;
+
+        scanned[p.name] = true;
+
+        beep.currentTime = 0;
         beep.play();
         vibrate();
 
@@ -118,7 +126,7 @@ function handleScan(code){
     });
 }
 
-// 🔥 CAMERA
+// 📷 CAMERA
 let scanner;
 
 function startScanner(){
@@ -130,8 +138,7 @@ function startScanner(){
         { fps:10, qrbox:250 },
         (decodedText)=>{
             handleScan(decodedText);
-        },
-        (err)=>{}
+        }
     );
 }
 
@@ -151,17 +158,67 @@ function toggleFlash(){
     });
 }
 
-// 🔍 MANUAL INPUT
-scanInput.addEventListener("keydown", function(e){
+// 🔍 SEARCH WITH SUGGESTION
+let suggestionData = [];
 
-    if(e.key === "Enter"){
-        let val = this.value.trim();
-        if(val){
-            handleScan(val);
-            this.value="";
-        }
+scanInput.addEventListener("input", function(){
+
+    let q = this.value.trim();
+
+    if(q.length < 2){
+        suggestions.innerHTML = "";
+        return;
     }
+
+    fetch("/search_suggestions/" + q)
+    .then(r=>r.json())
+    .then(data=>{
+
+        suggestionData = data;
+
+        let html = "";
+
+        data.forEach((p,i)=>{
+            html += `
+            <a class="list-group-item list-group-item-action"
+            onclick="selectProduct(${i})">
+            ${p.name} - Stock: ${p.stock}
+            </a>`;
+        });
+
+        suggestions.innerHTML = html;
+    });
 });
+
+// 🔍 SELECT FROM SEARCH
+function selectProduct(i){
+
+    let p = suggestionData[i];
+
+    if(scanned[p.name]) return;
+
+    scanned[p.name] = true;
+
+    beep.currentTime = 0;
+    beep.play();
+    vibrate();
+
+    let cls="in-stock";
+    if(p.stock==0) cls="out-stock";
+    else if(p.stock<5) cls="low-stock";
+
+    result.innerHTML = `
+    <div class="result-card">
+        <h4>${p.name}</h4>
+        <p>₹ ${p.price}</p>
+        <h2 class="${cls}">Stock: ${p.stock}</h2>
+    </div>`;
+
+    addHistory(p.name, p.stock);
+
+    suggestions.innerHTML = "";
+    scanInput.value = "";
+}
 
 // 🕒 HISTORY
 function addHistory(name, stock){
@@ -183,7 +240,7 @@ function renderHistory(){
         if(item.stock==0) color="red";
         else if(item.stock<5) color="orange";
 
-        html+=`
+        html += `
         <div class="history-item">
             <b>${item.name}</b><br>
             <span style="color:${color}">
