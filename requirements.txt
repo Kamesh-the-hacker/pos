@@ -1,2 +1,5 @@
-Flask
-Flask-SQLAlchemy
+flask
+flask_sqlalchemy
+gunicorn
+werkzeug
+openpyxl
