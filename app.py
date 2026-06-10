@@ -27,12 +27,27 @@ with app.app_context():
 # LOGIN
 @app.route("/", methods=["GET","POST"])
 def login():
+
     if request.method == "POST":
+
         user = User.query.filter_by(username=request.form["username"]).first()
 
         if user and check_password_hash(user.password, request.form["password"]):
+
             session["role"] = user.role
-            return redirect("/admin" if user.role=="admin" else "/billing")
+
+            user_agent = request.headers.get('User-Agent')
+
+            # 🔥 MOBILE STAFF → STOCK PAGE
+            if user.role == "staff" and "Mobile" in user_agent:
+                return redirect("/staff_stock")
+
+            # 🔥 DESKTOP STAFF → BILLING
+            if user.role == "staff":
+                return redirect("/billing")
+
+            # 🔥 ADMIN
+            return redirect("/admin")
 
     return render_template("login.html")
 
@@ -322,23 +337,25 @@ def update_stock():
 @app.route("/billing")
 def billing():
 
-    # ❌ BLOCK STAFF ACCESS ON MOBILE STOCK CHECK
+    # 🔥 ONLY allow billing role
     if session.get("role") != "staff":
-        return redirect("/")
+        return "Access denied ❌"
 
-    # 🔥 EXTRA PROTECTION: allow billing only from desktop
-    user_agent = request.headers.get('User-Agent').lower()
+    # 🔥 BLOCK mobile access (optional)
+    user_agent = request.headers.get('User-Agent')
 
-    if "mobile" in user_agent:
-        return "❌ Billing not allowed on mobile device"
+    if "Mobile" in user_agent:
+        return "Billing not allowed on mobile ❌"
 
     return render_template("billing.html")
 
-# STAFF STOCK
 @app.route("/staff_stock")
 def staff_stock():
+
+    # 🔥 Only staff allowed
     if session.get("role") != "staff":
-        return redirect("/")
+        return "Access denied ❌"
+
     return render_template("staff_stock.html")
 
 @app.route("/sales")
@@ -456,4 +473,4 @@ def logout():
 
 # RUN
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=5000, debug=True)
